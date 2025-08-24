@@ -195,7 +195,7 @@ const kundliEmailHTML = `
 
 // Send mail
 await transporter.sendMail({
-  from: `AstroWorld <${process.env.EMAIL_USER}>`,
+  from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
   to: email, // recipient email
   subject: "📜 Your Kundli PDF",
   html: kundliEmailHTML, // use HTML instead of text
