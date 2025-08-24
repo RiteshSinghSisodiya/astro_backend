@@ -171,18 +171,42 @@ app.post("/api/upload-kundli", upload.single("kundli"), async (req, res) => {
     });
 
     // Send email with PDF attachment
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Your Kundli PDF",
-      text: "Attached is your personalized Kundli.",
-      attachments: [
-        {
-          filename: file.originalname,
-          content: file.buffer, // directly from memory
-        },
-      ],
-    });
+    // Build HTML email template
+const kundliEmailHTML = `
+  <div style="font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px;">
+    <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
+      <div style="background: #6c5ce7; padding: 15px; text-align: center;">
+        <h1 style="color: white; margin: 0;">📜 Your Kundli is Ready</h1>
+      </div>
+      <div style="padding: 20px; color: #333;">
+        <p>Dear User,</p>
+        <p>Here is your personalized Kundli, attached with this email.</p>
+        <p>Thank you for choosing <b>Aura Jyotish Kendra</b>.  
+        We are honored to be a part of your spiritual journey.</p>
+        <p style="margin-top: 20px;">Wishing you peace, prosperity, and happiness ✨</p>
+
+        <p style="color: #999; font-size: 12px; margin-top: 30px;">
+          🔮 Sent automatically by Aura Jyotish Kendra system
+        </p>
+      </div>
+    </div>
+  </div>
+`;
+
+// Send mail
+await transporter.sendMail({
+  from: `AstroWorld <${process.env.EMAIL_USER}>`,
+  to: email, // recipient email
+  subject: "📜 Your Kundli PDF",
+  html: kundliEmailHTML, // use HTML instead of text
+  attachments: [
+    {
+      filename: file.originalname,
+      content: file.buffer, // PDF from memory
+    },
+  ],
+});
+
 
     res.json({ message: "PDF sent successfully to user!" });
   } catch (error) {
