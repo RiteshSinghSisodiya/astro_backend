@@ -113,7 +113,7 @@ app.post('/api/verify', async (req, res) => {
             </ul>
             <p>Please prepare their personalized reading and upload the Kundli PDF here:</p>
             <p>
-              <a href="http://localhost:5173/upload-kundli?email=${encodeURIComponent(formData.email)}"
+              <a href="https://www.aurajyotishkendra.com/upload-kundli?email=${encodeURIComponent(formData.email)}"
                  style="background: #0984e3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                 📤 Upload Kundli
               </a>
