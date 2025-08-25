@@ -126,14 +126,14 @@ app.post('/api/verify', async (req, res) => {
 
     // Send emails
     await transporter.sendMail({
-      from: `AstroWorld <${process.env.EMAIL_USER}>`,
+      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
       to: formData.email,
-      subject: '✨ AstroWorld: Payment Successful & Your Reading is Coming',
+      subject: '✨ Aura jyotish kendra: Payment Successful & Your Reading is Coming',
       html: customerEmailHTML
     })
 
     await transporter.sendMail({
-      from: `AstroWorld <${process.env.EMAIL_USER}>`,
+      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
       to: 't06863633@gmail.com',
       subject: '🔮 New Astrology Reading Request',
       html: panditEmailHTML
