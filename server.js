@@ -28,7 +28,7 @@ const razorpay = new Razorpay({
 
 
 app.get('/', (req, res) => {
-  res.send('AstroWorld Backend is running!')
+  res.send('Aura jyotish kendra Backend is running!')
 })
 
 // Create Razorpay order
@@ -75,7 +75,7 @@ app.post('/api/verify', async (req, res) => {
       <div style="font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px;">
         <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
           <div style="background: #6c5ce7; padding: 15px; text-align: center;">
-            <h1 style="color: white; margin: 0;">✨ AstroWorld ✨</h1>
+            <h1 style="color: white; margin: 0;">✨ Aura jyotish kendra ✨</h1>
           </div>
           <div style="padding: 20px; color: #333;">
             <h2>Hi ${formData.fullName},</h2>
@@ -90,7 +90,7 @@ app.post('/api/verify', async (req, res) => {
               <li><b>Order ID:</b> ${razorpay_order_id}</li>
             </ul>
             <p style="margin-top: 20px;">We will get in touch with you soon with your detailed reading 🌟</p>
-            <p style="color: #999; font-size: 12px;">© ${new Date().getFullYear()} AstroWorld</p>
+            <p style="color: #999; font-size: 12px;">© ${new Date().getFullYear()} Aura jyotish kendra</p>
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ app.post('/api/verify', async (req, res) => {
                 📤 Upload Kundli
               </a>
             </p>
-            <p style="color: #999; font-size: 12px;">Sent automatically by AstroWorld system</p>
+            <p style="color: #999; font-size: 12px;">Sent automatically by Aura jyotish kendra system</p>
           </div>
         </div>
       </div>
