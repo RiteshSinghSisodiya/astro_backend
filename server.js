@@ -85,7 +85,7 @@ app.post('/api/verify', async (req, res) => {
               <li><b>Phone:</b> ${formData.phone}</li>
               <li><b>DOB:</b> ${formData.dob}</li>
               <li><b>Location:</b> ${formData.city}, ${formData.state}, ${formData.country}</li>
-               <li><b>Amount:</b> ${formData.amount}</li>
+              <li><b>Amount:</b> ${formData.amount}</li>
               <li><b>Payment ID:</b> ${razorpay_payment_id}</li>
               <li><b>Order ID:</b> ${razorpay_order_id}</li>
             </ul>
@@ -124,6 +124,22 @@ app.post('/api/verify', async (req, res) => {
       </div>
     `;
 
+    // 3. Email to Support
+    const supportEmailHTML = `
+      <div style="font-family: Arial, sans-serif; background: #fff; padding: 20px;">
+        <h2>📢 New Payment Notification</h2>
+        <p><b>Name:</b> ${formData.fullName}</p>
+        <p><b>Email:</b> ${formData.email}</p>
+        <p><b>Phone:</b> ${formData.phone}</p>
+        <p><b>DOB:</b> ${formData.dob}</p>
+        <p><b>Birth Time:</b> ${formData.birthTime}</p>
+        <p><b>Location:</b> ${formData.city}, ${formData.state}, ${formData.country}</p>
+        <p><b>Amount:</b> ${formData.amount}</p>
+        <p><b>Payment ID:</b> ${razorpay_payment_id}</p>
+        <p><b>Order ID:</b> ${razorpay_order_id}</p>
+      </div>
+    `;
+
     // Send emails
     await transporter.sendMail({
       from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
@@ -139,7 +155,14 @@ app.post('/api/verify', async (req, res) => {
       html: panditEmailHTML
     })
 
-    console.log('Emails sent to customer and pandit successfully.')
+    await transporter.sendMail({
+      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
+      to: 'own.parks2025@gmail.com',
+      subject: '📢 New Payment Received - Aura jyotish kendra',
+      html: supportEmailHTML
+    })
+
+    console.log('Emails sent to customer, pandit and support successfully.')
     res.json({ success: true })
 
   } catch (err) {
@@ -170,43 +193,41 @@ app.post("/api/upload-kundli", upload.single("kundli"), async (req, res) => {
       },
     });
 
-    // Send email with PDF attachment
     // Build HTML email template
-const kundliEmailHTML = `
-  <div style="font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px;">
-    <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
-      <div style="background: #6c5ce7; padding: 15px; text-align: center;">
-        <h1 style="color: white; margin: 0;">📜 Your Kundli is Ready</h1>
+    const kundliEmailHTML = `
+      <div style="font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px;">
+        <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
+          <div style="background: #6c5ce7; padding: 15px; text-align: center;">
+            <h1 style="color: white; margin: 0;">📜 Your Kundli is Ready</h1>
+          </div>
+          <div style="padding: 20px; color: #333;">
+            <p>Dear User,</p>
+            <p>Here is your personalized Kundli, attached with this email.</p>
+            <p>Thank you for choosing <b>Aura Jyotish Kendra</b>.  
+            We are honored to be a part of your spiritual journey.</p>
+            <p style="margin-top: 20px;">Wishing you peace, prosperity, and happiness ✨</p>
+
+            <p style="color: #999; font-size: 12px; margin-top: 30px;">
+              🔮 Sent automatically by Aura Jyotish Kendra system
+            </p>
+          </div>
+        </div>
       </div>
-      <div style="padding: 20px; color: #333;">
-        <p>Dear User,</p>
-        <p>Here is your personalized Kundli, attached with this email.</p>
-        <p>Thank you for choosing <b>Aura Jyotish Kendra</b>.  
-        We are honored to be a part of your spiritual journey.</p>
-        <p style="margin-top: 20px;">Wishing you peace, prosperity, and happiness ✨</p>
+    `;
 
-        <p style="color: #999; font-size: 12px; margin-top: 30px;">
-          🔮 Sent automatically by Aura Jyotish Kendra system
-        </p>
-      </div>
-    </div>
-  </div>
-`;
-
-// Send mail
-await transporter.sendMail({
-  from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
-  to: email, // recipient email
-  subject: "📜 Your Kundli PDF",
-  html: kundliEmailHTML, // use HTML instead of text
-  attachments: [
-    {
-      filename: file.originalname,
-      content: file.buffer, // PDF from memory
-    },
-  ],
-});
-
+    // Send mail
+    await transporter.sendMail({
+      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
+      to: email, // recipient email
+      subject: "📜 Your Kundli PDF",
+      html: kundliEmailHTML,
+      attachments: [
+        {
+          filename: file.originalname,
+          content: file.buffer, // PDF from memory
+        },
+      ],
+    });
 
     res.json({ message: "PDF sent successfully to user!" });
   } catch (error) {
