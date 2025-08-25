@@ -151,7 +151,7 @@ app.post('/api/verify', async (req, res) => {
     await transporter.sendMail({
       from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
       to: 't06863633@gmail.com',
-      subject: '🔮 New Astrology Reading Request',
+      subject: '🔮 New Astrology Reading Request.',
       html: panditEmailHTML
     })
 
