@@ -219,7 +219,7 @@ app.post("/api/upload-kundli", upload.single("kundli"), async (req, res) => {
     await transporter.sendMail({
       from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
       to: email, // recipient email
-      subject: "📜 Your Kundli PDF",
+      subject: "📜 Your Kundli ",
       html: kundliEmailHTML,
       attachments: [
         {
