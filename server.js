@@ -26,7 +26,6 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 })
 
-
 app.get('/', (req, res) => {
   res.send('Aura jyotish kendra Backend is running!')
 })
@@ -113,7 +112,7 @@ app.post('/api/verify', async (req, res) => {
             </ul>
             <p>Please prepare their personalized reading and upload the Kundli PDF here:</p>
             <p>
-              <a href="https://www.aurajyotishkendra.com/upload-kundli?email=${encodeURIComponent(formData.email)}"
+              <a href="https://www.aurajyotishkendra.com/upload-kundli?email=${encodeURIComponent(formData.email)}&name=${encodeURIComponent(formData.fullName)}"
                  style="background: #0984e3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                 📤 Upload Kundli
               </a>
@@ -170,7 +169,6 @@ app.post('/api/verify', async (req, res) => {
     res.status(500).json({ success: false, msg: 'Server error' })
   }
 })
-
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -235,7 +233,6 @@ app.post("/api/upload-kundli", upload.single("kundli"), async (req, res) => {
     res.status(500).send("Error sending PDF");
   }
 });
-
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => console.log('Backend running on port', PORT))
