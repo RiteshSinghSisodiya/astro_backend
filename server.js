@@ -61,13 +61,12 @@ app.post('/api/verify', async (req, res) => {
     // Setup email transporter
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      secure: true,
-      port: 465,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    })
+        pass: process.env.EMAIL_PASS, // must be App Password if 2FA is on
+      },
+    });
+
 
     // 1. Email to Customer
     const customerEmailHTML = `
