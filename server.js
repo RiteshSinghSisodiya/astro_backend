@@ -114,7 +114,7 @@ app.post('/api/verify', async (req, res) => {
             <p>
               <a href="https://www.aurajyotishkendra.com/upload-kundli?email=${encodeURIComponent(formData.email)}&name=${encodeURIComponent(formData.fullName)}"
                  style="background: #0984e3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                📤 Upload Kundli
+                📤 Upload Document
               </a>
             </p>
             <p style="color: #999; font-size: 12px;">Sent automatically by Aura jyotish kendra system</p>
