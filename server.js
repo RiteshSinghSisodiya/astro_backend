@@ -60,12 +60,15 @@ app.post('/api/verify', async (req, res) => {
 
     // Setup email transporter
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: "smtp.zoho.in", // or smtp.zoho.com if not India account
+      port: 465,            // use 465 for SSL
+      secure: true,         // true for port 465, false for 587
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // must be App Password if 2FA is on
+        user: process.env.EMAIL_USER, // Zoho email
+        pass: process.env.EMAIL_PASS, // Zoho app password
       },
     });
+
 
 
     // 1. Email to Customer
