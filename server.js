@@ -4,9 +4,11 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
-import nodemailer from 'nodemailer'
+
 import fs from "fs";
 import multer from "multer";
+import mongoose from 'mongoose'
+import Payment from './models/Payment.js'
 
 dotenv.config()
 
@@ -58,112 +60,6 @@ app.post('/api/verify', async (req, res) => {
       return res.status(400).json({ success: false, msg: 'Invalid signature' })
     }
 
-    // Setup email transporter
-    const transporter = nodemailer.createTransport({
-      host: "smtp.zoho.in", // or smtp.zoho.com if not India account
-      port: 465,            // use 465 for SSL
-      secure: true,         // true for port 465, false for 587
-      auth: {
-        user: process.env.EMAIL_USER, // Zoho email
-        pass: process.env.EMAIL_PASS, // Zoho app password
-      },
-    });
-
-
-
-    // 1. Email to Customer
-    const customerEmailHTML = `
-      <div style="font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px;">
-        <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
-          <div style="background: #6c5ce7; padding: 15px; text-align: center;">
-            <h1 style="color: white; margin: 0;">✨ Aura jyotish kendra ✨</h1>
-          </div>
-          <div style="padding: 20px; color: #333;">
-            <h2>Hi ${formData.fullName},</h2>
-            <p>Thank you for your payment! Your personalized astrology reading is being prepared.</p>
-            <h3 style="color: #6c5ce7;">Your Details:</h3>
-            <ul>
-              <li><b>Phone:</b> ${formData.phone}</li>
-              <li><b>DOB:</b> ${formData.dob}</li>
-              <li><b>Location:</b> ${formData.city}, ${formData.state}, ${formData.country}</li>
-              <li><b>Amount:</b> ${formData.amount}</li>
-              <li><b>Payment ID:</b> ${razorpay_payment_id}</li>
-              <li><b>Order ID:</b> ${razorpay_order_id}</li>
-            </ul>
-            <p style="margin-top: 20px;">We will get in touch with you soon with your detailed reading 🌟</p>
-            <p style="color: #999; font-size: 12px;">© ${new Date().getFullYear()} Aura jyotish kendra</p>
-          </div>
-        </div>
-      </div>
-    `
-
-    // 2. Email to Pandit
-    const panditEmailHTML = `
-      <div style="font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px;">
-        <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
-          <div style="background: #ff7675; padding: 15px; text-align: center;">
-            <h1 style="color: white; margin: 0;">🔮 New Astrology Request</h1>
-          </div>
-          <div style="padding: 20px; color: #333;">
-            <h2>Client Details:</h2>
-            <ul>
-              <li><b>Name:</b> ${formData.fullName}</li>
-              <li><b>DOB:</b> ${formData.dob}</li>
-              <li><b>Birth Time:</b> ${formData.birthTime}</li>
-              <li><b>Location:</b> ${formData.city}, ${formData.state}, ${formData.country}</li>
-            </ul>
-            <p>Please prepare their personalized reading and upload the Kundli PDF here:</p>
-            <p>
-              <a href="https://www.aurajyotishkendra.com/upload-kundli?email=${encodeURIComponent(formData.email)}&name=${encodeURIComponent(formData.fullName)}"
-                 style="background: #0984e3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                📤 Upload Document
-              </a>
-            </p>
-            <p style="color: #999; font-size: 12px;">Sent automatically by Aura jyotish kendra system</p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // 3. Email to Support
-    const supportEmailHTML = `
-      <div style="font-family: Arial, sans-serif; background: #fff; padding: 20px;">
-        <h2>📢 New Payment Notification</h2>
-        <p><b>Name:</b> ${formData.fullName}</p>
-        <p><b>Email:</b> ${formData.email}</p>
-        <p><b>Phone:</b> ${formData.phone}</p>
-        <p><b>DOB:</b> ${formData.dob}</p>
-        <p><b>Birth Time:</b> ${formData.birthTime}</p>
-        <p><b>Location:</b> ${formData.city}, ${formData.state}, ${formData.country}</p>
-        <p><b>Amount:</b> ${formData.amount}</p>
-        <p><b>Payment ID:</b> ${razorpay_payment_id}</p>
-        <p><b>Order ID:</b> ${razorpay_order_id}</p>
-      </div>
-    `;
-
-    // Send emails
-    await transporter.sendMail({
-      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
-      to: formData.email,
-      subject: '✨ Aura jyotish kendra: Payment Successful & Your Reading is Coming',
-      html: customerEmailHTML
-    })
-
-    await transporter.sendMail({
-      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
-      to: 't06863633@gmail.com',
-      subject: '🔮 New Astrology Reading Request.',
-      html: panditEmailHTML
-    })
-
-    await transporter.sendMail({
-      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
-      to: 'own.parks2025@gmail.com',
-      subject: '📢 New Payment Received - Aura jyotish kendra',
-      html: supportEmailHTML
-    })
-
-    console.log('Emails sent to customer, pandit and support successfully.')
     res.json({ success: true })
 
   } catch (err) {
@@ -177,64 +73,90 @@ const upload = multer({ storage: storage });
 
 app.post("/api/upload-kundli", upload.single("kundli"), async (req, res) => {
   try {
-    const { email } = req.body; // Get user's email from form or query
     const file = req.file;
 
     if (!file) {
       return res.status(400).send("No file uploaded");
     }
 
-    // Email setup
-    const transporter = nodemailer.createTransport({
-      service: "gmail", // or your SMTP
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // Build HTML email template
-    const kundliEmailHTML = `
-      <div style="font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px;">
-        <div style="max-width: 600px; background: white; margin: auto; border-radius: 10px; overflow: hidden;">
-          <div style="background: #6c5ce7; padding: 15px; text-align: center;">
-            <h1 style="color: white; margin: 0;">📜 Your Kundli is Ready</h1>
-          </div>
-          <div style="padding: 20px; color: #333;">
-            <p>Dear User,</p>
-            <p>Here is your personalized Kundli, attached with this email.</p>
-            <p>Thank you for choosing <b>Aura Jyotish Kendra</b>.  
-            We are honored to be a part of your spiritual journey.</p>
-            <p style="margin-top: 20px;">Wishing you peace, prosperity, and happiness ✨</p>
-
-            <p style="color: #999; font-size: 12px; margin-top: 30px;">
-              🔮 Sent automatically by Aura Jyotish Kendra system
-            </p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Send mail
-    await transporter.sendMail({
-      from: `Aura jyotish kendra <${process.env.EMAIL_USER}>`,
-      to: email, // recipient email
-      subject: "📜 Your Kundli ",
-      html: kundliEmailHTML,
-      attachments: [
-        {
-          filename: file.originalname,
-          content: file.buffer, // PDF from memory
-        },
-      ],
-    });
-
-    res.json({ message: "PDF sent successfully to user!" });
+    // Mailing disabled; acknowledge upload without sending email
+    res.json({ success: true, message: "Upload received. Emailing disabled." });
   } catch (error) {
     console.error(error);
-    res.status(500).send("Error sending PDF");
+    res.status(500).send("Server error");
   }
 });
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => console.log('Backend running on port', PORT))
+
+// MongoDB connection
+const buildMongoUri = () => {
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI
+  const { MONGODB_USERNAME, MONGODB_PASSWORD, MONGODB_HOST, MONGODB_DBNAME } = process.env
+  if (MONGODB_USERNAME && MONGODB_PASSWORD && MONGODB_HOST) {
+    const encodedPass = encodeURIComponent(MONGODB_PASSWORD)
+    const db = MONGODB_DBNAME || 'astrodb'
+    return `mongodb+srv://${MONGODB_USERNAME}:${encodedPass}@${MONGODB_HOST}/${db}?retryWrites=true&w=majority&appName=Cluster0`
+  }
+  return null
+}
+
+const mongoUri = buildMongoUri()
+if (!mongoUri) {
+  console.error('MongoDB configuration missing: set MONGODB_URI or MONGODB_USERNAME/MONGODB_PASSWORD/MONGODB_HOST')
+} else {
+  mongoose
+    .connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+      autoIndex: true,
+    })
+    .then(() => console.log('MongoDB connected'))
+    .catch((err) => console.error('MongoDB connection error:', err))
+}
+
+// Save payment details to MongoDB
+app.post('/api/save-payment', async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      dob,
+      birthTime,
+      country,
+      state,
+      city,
+      amount,
+      orderId,
+      paymentId,
+    } = req.body
+
+    // Basic validation (relaxed: allow missing dob)
+    if (!fullName || !email || !amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'fullName, email, and amount are required',
+      })
+    }
+
+    const doc = await Payment.create({
+      fullName,
+      email,
+      phone,
+      dob,
+      birthTime,
+      country,
+      state,
+      city,
+      amount,
+      orderId,
+      paymentId,
+    })
+
+    return res.status(201).json({ success: true, id: doc._id })
+  } catch (err) {
+    console.error('Failed to save payment:', err)
+    return res.status(500).json({ success: false, error: 'Server error' })
+  }
+})
