@@ -43,7 +43,7 @@ try {
 
 // Environment-driven UPI details for QR payments
 const UPI_VPA = process.env.UPI_VPA || "6205586065@ybl";
-const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME || "Astro Merchant";
+const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME || "Aura Jyotish Kendra";
 // Secret for QR verification token; fall back to Razorpay secret if available
 const QR_SECRET = process.env.QR_SECRET || process.env.RAZORPAY_KEY_SECRET || "default_qr_secret";
 
