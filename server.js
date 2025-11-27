@@ -26,13 +26,62 @@ app.get("/", (req, res) => {
   res.send("Astro backend is running.");
 });
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+let razorpay = null;
+try {
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  } else {
+    console.warn("Razorpay keys not set; Razorpay endpoints will be unavailable.");
+  }
+} catch (e) {
+  console.error("Failed to initialize Razorpay:", e);
+  razorpay = null;
+}
+
+// Environment-driven UPI details for QR payments
+const UPI_VPA = process.env.UPI_VPA || "test@upi";
+const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME || "Astro Merchant";
+// Secret for QR verification token; fall back to Razorpay secret if available
+const QR_SECRET = process.env.QR_SECRET || process.env.RAZORPAY_KEY_SECRET || "default_qr_secret";
+
+// Create a QR-based order without Razorpay; returns a secure token and QR payload
+app.post("/api/create-qr-order", async (req, res) => {
+  try {
+    const { amount, note, payerName } = req.body;
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: "Valid amount (>0) is required" });
+    }
+
+    const normalizedAmount = Number(amount);
+    // Unique order id similar to a receipt format
+    const orderId = `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // Token to validate subsequent save-payment calls
+    const hmac = crypto.createHmac("sha256", QR_SECRET);
+    hmac.update(`${orderId}|${normalizedAmount}`);
+    const verificationToken = hmac.digest("hex");
+
+    // UPI QR value (Android/iOS payment apps can read this)
+    const payeeName = UPI_PAYEE_NAME;
+    const txnNote = (note || "Astrology Consultation").slice(0, 60);
+    // Include orderId in transaction reference for reconciliation
+    const tr = orderId;
+    const qrValue = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent(payeeName)}&am=${encodeURIComponent(normalizedAmount)}&cu=INR&tn=${encodeURIComponent(txnNote)}&tr=${encodeURIComponent(tr)}`;
+
+    res.json({ orderId, amount: normalizedAmount, verificationToken, qrValue });
+  } catch (error) {
+    console.error("Error creating QR order:", error);
+    res.status(500).json({ error: "Failed to create QR order" });
+  }
 });
 
 app.post("/api/create-order", async (req, res) => {
   try {
+    if (!razorpay) {
+      return res.status(503).json({ error: "Razorpay not configured" });
+    }
     const { amount } = req.body;
     if (!amount || Number(amount) <= 0) {
       return res.status(400).json({ error: "Valid amount (>0) is required" });
@@ -103,10 +152,32 @@ app.post("/api/save-payment", async (req, res) => {
       amount,
       orderId,
       paymentId,
+      verificationToken,
     } = req.body;
 
     if (!fullName || !email || !dob || !amount || Number(amount) <= 0) {
       return res.status(400).json({ error: "fullName, email, dob, and valid amount (>0) are required" });
+    }
+
+    // If a verificationToken is supplied (QR flow), validate it
+    if (verificationToken) {
+      try {
+        const normalizedAmount = Number(amount);
+        const hmac = crypto.createHmac("sha256", QR_SECRET);
+        hmac.update(`${orderId}|${normalizedAmount}`);
+        const expected = hmac.digest("hex");
+        if (expected !== verificationToken) {
+          return res.status(400).json({ error: "Invalid verification token" });
+        }
+      } catch (err) {
+        console.error("QR token verification error:", err);
+        return res.status(500).json({ error: "Failed to verify QR token" });
+      }
+    }
+
+    // Ensure DB connection is active before attempting to save
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: "Database not connected" });
     }
 
     const payment = new Payment({
@@ -131,23 +202,98 @@ app.post("/api/save-payment", async (req, res) => {
   }
 });
 
+// Confirm payment by saving reference number and timestamp on user document
+app.post("/api/users/confirm-payment", async (req, res) => {
+  try {
+    const {
+      email,
+      referenceNumber,
+      amount,
+      orderId,
+      verificationToken,
+      // optional fields to set only on insert
+      fullName,
+      phone,
+      dob,
+      birthTime,
+      country,
+      state,
+      city,
+    } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "email is required" });
+    }
+    if (!referenceNumber || String(referenceNumber).trim().length === 0) {
+      return res.status(400).json({ error: "referenceNumber is required" });
+    }
+
+    // If a verificationToken is supplied (QR flow), validate it
+    if (verificationToken) {
+      try {
+        const normalizedAmount = Number(amount || 0);
+        if (!orderId || !normalizedAmount) {
+          return res.status(400).json({ error: "orderId and amount are required when verificationToken is provided" });
+        }
+        const hmac = crypto.createHmac("sha256", QR_SECRET);
+        hmac.update(`${orderId}|${normalizedAmount}`);
+        const expected = hmac.digest("hex");
+        if (expected !== verificationToken) {
+          return res.status(400).json({ error: "Invalid verification token" });
+        }
+      } catch (err) {
+        console.error("QR token verification error:", err);
+        return res.status(500).json({ error: "Failed to verify QR token" });
+      }
+    }
+
+    // Ensure DB connection is active
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: "Database not connected" });
+    }
+
+    // Insert a NEW payment document per confirmation (no upsert)
+    const now = new Date();
+    const payment = new Payment({
+      fullName,
+      email,
+      phone,
+      dob,
+      birthTime,
+      country,
+      state,
+      city,
+      amount: amount ? Number(amount) : undefined,
+      orderId,
+      referenceNumber: String(referenceNumber).trim(),
+      paymentConfirmedAt: now,
+      status: "confirmed",
+    });
+
+    await payment.save();
+    res.json({ success: true, message: "Payment confirmed", paymentId: payment._id, paymentConfirmedAt: payment.paymentConfirmedAt });
+  } catch (error) {
+    console.error("Error confirming payment:", error);
+    res.status(500).json({ error: "Failed to confirm payment" });
+  }
+});
+
 const PORT = process.env.PORT || 5080;
 const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 
-if (!mongoUri) {
-  console.error("MongoDB URI is not set. Define MONGO_URI or MONGODB_URI in environment.");
-  process.exit(1);
-}
-
 (async () => {
   try {
-    await mongoose.connect(mongoUri);
-    console.log("Connected to MongoDB");
+    if (mongoUri) {
+      await mongoose.connect(mongoUri);
+      console.log("Connected to MongoDB");
+    } else {
+      console.warn("MongoDB URI not set; starting server without DB connection.");
+    }
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (err) {
-    console.error("Failed to connect to MongoDB:", err);
+    console.error("Failed to start server:", err);
     process.exit(1);
   }
 })();
