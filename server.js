@@ -27,9 +27,15 @@ app.get("/", (req, res) => {
 
 // Razorpay integration removed; keeping only QR-based flow
 
-// Environment-driven UPI details for QR payments
-const UPI_VPA = process.env.UPI_VPA;
-const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME;
+// Environment-driven UPI details for QR payments (sanitize env values)
+const sanitize = (val, fallback = "") => {
+  if (!val || typeof val !== "string") return fallback;
+  const trimmed = val.trim();
+  // Strip leading/trailing quotes if present
+  return trimmed.replace(/^['"]|['"]$/g, "");
+};
+const UPI_VPA = sanitize(process.env.UPI_VPA, "6205586065@ybl");
+const UPI_PAYEE_NAME = sanitize(process.env.UPI_PAYEE_NAME, "Aura Jyotish Kendra");
 // Secret for QR verification token
 const QR_SECRET = process.env.QR_SECRET || "default_qr_secret";
 
@@ -41,6 +47,13 @@ app.post("/api/create-qr-order", async (req, res) => {
       return res.status(400).json({ error: "Valid amount (>0) is required" });
     }
 
+    // Validate UPI VPA to prevent invalid QR payloads (pa=undefined)
+    const isValidVpa = (vpa) => typeof vpa === "string" && /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(vpa);
+    if (!isValidVpa(UPI_VPA)) {
+      console.error("Invalid or missing UPI_VPA:", UPI_VPA);
+      return res.status(500).json({ error: "UPI VPA is not configured correctly" });
+    }
+
     const normalizedAmount = Number(amount);
     // Unique order id similar to a receipt format
     const orderId = `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -50,7 +63,7 @@ app.post("/api/create-qr-order", async (req, res) => {
     const verificationToken = hmac.digest("hex");
 
     // UPI QR value (Android/iOS payment apps can read this)
-    const payeeName = UPI_PAYEE_NAME;
+    const payeeName = (UPI_PAYEE_NAME && UPI_PAYEE_NAME.trim()) ? UPI_PAYEE_NAME.trim() : "Aura Jyotish Kendra";
     const txnNote = (note || "Astrology Consultation").slice(0, 60);
     // Include orderId in transaction reference for reconciliation
     const tr = orderId;
