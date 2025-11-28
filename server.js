@@ -2,7 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import bodyParser from "body-parser";
-import Razorpay from "razorpay";
 import crypto from "crypto";
 import multer from "multer";
 import mongoose from "mongoose";
@@ -26,26 +25,13 @@ app.get("/", (req, res) => {
   res.send("Astro backend is running.");
 });
 
-let razorpay = null;
-try {
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-    razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-  } else {
-    console.warn("Razorpay keys not set; Razorpay endpoints will be unavailable.");
-  }
-} catch (e) {
-  console.error("Failed to initialize Razorpay:", e);
-  razorpay = null;
-}
+// Razorpay integration removed; keeping only QR-based flow
 
 // Environment-driven UPI details for QR payments
-const UPI_VPA = process.env.UPI_VPA || "6205586065@ybl";
-const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME || "Aura Jyotish Kendra";
-// Secret for QR verification token; fall back to Razorpay secret if available
-const QR_SECRET = process.env.QR_SECRET || process.env.RAZORPAY_KEY_SECRET || "default_qr_secret";
+const UPI_VPA = process.env.UPI_VPA;
+const UPI_PAYEE_NAME = process.env.UPI_PAYEE_NAME;
+// Secret for QR verification token
+const QR_SECRET = process.env.QR_SECRET || "default_qr_secret";
 
 // Create a QR-based order without Razorpay; returns a secure token and QR payload
 app.post("/api/create-qr-order", async (req, res) => {
@@ -77,48 +63,7 @@ app.post("/api/create-qr-order", async (req, res) => {
   }
 });
 
-app.post("/api/create-order", async (req, res) => {
-  try {
-    if (!razorpay) {
-      return res.status(503).json({ error: "Razorpay not configured" });
-    }
-    const { amount } = req.body;
-    if (!amount || Number(amount) <= 0) {
-      return res.status(400).json({ error: "Valid amount (>0) is required" });
-    }
-
-    const options = {
-      amount: Number(amount) * 100,
-      currency: "INR",
-      receipt: `receipt_${Date.now()}`,
-    };
-
-    const order = await razorpay.orders.create(options);
-    res.json(order);
-  } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({ error: "Failed to create order" });
-  }
-});
-
-app.post("/api/verify", async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-    hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-    const generated_signature = hmac.digest("hex");
-
-    if (generated_signature === razorpay_signature) {
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ success: false, error: "Invalid signature" });
-    }
-  } catch (error) {
-    console.error("Error verifying payment:", error);
-    res.status(500).json({ error: "Failed to verify payment" });
-  }
-});
+// Razorpay routes removed: /api/create-order and /api/verify
 
 const storage = multer.memoryStorage();
 const upload = multer({
